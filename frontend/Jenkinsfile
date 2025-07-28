@@ -1,0 +1,83 @@
+node {
+    def DOCKER_USER = 'ajju13'
+    def BUILD_NUMBER = env.BUILD_NUMBER
+
+    try {
+        stage('Git Clone') {
+            if (changeset("frontend/**")) {
+                git url: 'https://github.com/AjayKumarPatnaikuni/cloudlearning10.git', branch: 'main'
+            }
+        }
+
+        stage('Install Dependencies') {
+            dir('frontend') {
+                sh 'pip install -r requirements.txt'
+            }
+        }
+
+        stage('Run Tests') {
+            dir('frontend') {
+                sh 'python -m pytest tests/'
+            }
+        }
+
+        stage('Docker Login') {
+            withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+            }
+        }
+
+        stage('Trivy FS Scan') {
+            if (changeset("frontend/**")) {
+                dir('frontend') {
+                    sh 'trivy fs .'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            if (changeset("frontend/**")) {
+                dir('frontend') {
+                    sh "docker build -t $DOCKER_USER/cloudlearning10-frontend:${BUILD_NUMBER} ."
+                }
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            if (changeset("frontend/**")) {
+                sh "trivy image $DOCKER_USER/cloudlearning10-frontend:${BUILD_NUMBER}"
+            }
+        }
+
+        stage('Docker Push') {
+            if (changeset("frontend/**")) {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCK_PASSWORD', usernameVariable: 'DOCK_USER')]) {
+                    sh """
+                    docker login -u ${DOCK_USER} -p ${DOCK_PASSWORD}
+                    docker push $DOCKER_USER/cloudlearning10-frontend:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        stage('Update Deployment Manifest') {
+            if (changeset("frontend/**")) {
+                withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USER')]) {
+                    sh """
+                    sed -i "s|image: ajju13/cloudlearning10-frontend:[^ ]*|image: ajju13/cloudlearning10-frontend:${BUILD_NUMBER}|" ./k8s/frontend-deployment.yaml
+                    git config user.email "ajaykumarpatnaikuni@gmail.com"
+                    git config user.name "AjayKumarPatnaikuni"
+                    git add ./k8s/frontend-deployment.yaml
+                    git commit -m "Updated frontend image tag to ${BUILD_NUMBER} via Jenkins"
+                    git push https://${GIT_USER}:${GIT_PASSWORD}@github.com/AjayKumarPatnaikuni/cloudlearning10.git HEAD:main
+                    """
+                }
+            }
+        }
+    } catch (Exception e) {
+        currentBuild.result = 'FAILURE'
+        throw e
+    } finally {
+        cleanWs()
+    }
+}
