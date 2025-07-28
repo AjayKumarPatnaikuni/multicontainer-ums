@@ -6,7 +6,7 @@ node {
     try {
         stage('Git Clone') {
             if (changeset("backend/**")) {
-                git url: 'https://github.com/AjayKumarPatnaikuni/cloudlearning10.git', branch: 'main'
+                git url: 'https://github.com/AjayKumarPatnaikuni/multicontainer-ums.git', branch: 'main'
             }
         }
 
@@ -39,14 +39,14 @@ node {
         stage('Docker Build') {
             if (changeset("backend/**")) {
                 dir('backend') {
-                    sh "docker build -t $DOCKER_USER/cloudlearning10-backend:${BUILD_NUMBER} ."
+                    sh "docker build -t $DOCKER_USER/multicontainer-ums-backend:${BUILD_NUMBER} ."
                 }
             }
         }
 
         stage('Trivy Image Scan') {
             if (changeset("backend/**")) {
-                sh "trivy image $DOCKER_USER/cloudlearning10-backend:${BUILD_NUMBER}"
+                sh "trivy image $DOCKER_USER/multicontainer-ums-backend:${BUILD_NUMBER}"
             }
         }
 
@@ -55,7 +55,7 @@ node {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCK_PASSWORD', usernameVariable: 'DOCK_USER')]) {
                     sh """
                     docker login -u ${DOCK_USER} -p ${DOCK_PASSWORD}
-                    docker push $DOCKER_USER/cloudlearning10-backend:${BUILD_NUMBER}
+                    docker push $DOCKER_USER/multicontainer-ums-backend:${BUILD_NUMBER}
                     """
                 }
             }
@@ -65,12 +65,12 @@ node {
             if (changeset("backend/**")) {
                 withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USER')]) {
                     sh """
-                    sed -i "s|image: ajju13/cloudlearning10-backend:[^ ]*|image: ajju13/cloudlearning10-backend:${BUILD_NUMBER}|" ./k8s/backend-deployment.yaml
+                    sed -i "s|image: ajju13/multicontainer-ums-backend:[^ ]*|image: ajju13/multicontainer-ums-backend:${BUILD_NUMBER}|" ./k8s/backend-deployment.yaml
                     git config user.email "ajaykumarpatnaikuni@gmail.com"
                     git config user.name "AjayKumarPatnaikuni"
                     git add ./k8s/backend-deployment.yaml
                     git commit -m "Updated backend image tag to ${BUILD_NUMBER} via Jenkins"
-                    git push https://${GIT_USER}:${GIT_PASSWORD}@github.com/AjayKumarPatnaikuni/cloudlearning10.git HEAD:main
+                    git push https://${GIT_USER}:${GIT_PASSWORD}@github.com/AjayKumarPatnaikuni/multicontainer-ums.git HEAD:main
                     """
                 }
             }

@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: frontend:latest
+        image: multicontainer-ums-frontend:latest
         ports:
         - containerPort: 80
         env:
