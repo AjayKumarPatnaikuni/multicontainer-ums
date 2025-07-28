@@ -5,7 +5,7 @@ node {
     try {
         stage('Git Clone') {
             if (changeset("frontend/**")) {
-                git url: 'https://github.com/AjayKumarPatnaikuni/multicontainer-ums.git', branch: 'main'
+                git branch: 'main', credentialsId: 'github-creds', git url: 'https://github.com/AjayKumarPatnaikuni/multicontainer-ums.git'
             }
         }
 

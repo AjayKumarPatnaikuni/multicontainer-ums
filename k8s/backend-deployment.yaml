@@ -38,7 +38,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: multicontainer-ums:latest
+        image: multicontainer-ums-backend:latest
         ports:
         - containerPort: 3000
         env:
